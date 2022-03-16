@@ -1,0 +1,80 @@
+version: "3"
+services:
+  apache:
+    build: .docker/apache
+    working_dir: /var/www/html
+    depends_on:
+      - php-fpm
+      - node
+      - mysql
+    ports:
+      - 8080:80
+    volumes:
+      - ./:/var/www/html
+      - ./public:/var/www/html/public
+    networks:
+      - backend
+    environment:
+      - PHP_FPM_IP=php-fpm
+  php-cli:
+    build: .docker/php-cli
+    working_dir: /var/www/html
+    depends_on:
+      - mysql
+      - php-fpm
+    volumes:
+      - ./:/var/www/html
+      - ./public:/var/www/html/public
+    networks:
+      - backend
+    environment:
+      - DATABASE_URL=mysql://root:password@mysql:3306/character_den?serverVersion=8.0.23
+    command: bash -c "composer update && tail -f /dev/null"
+  php-fpm:
+    build: .docker/php-fpm
+    working_dir: /var/www/html
+    depends_on:
+      - node
+      - mysql
+    volumes:
+      - ./:/var/www/html
+      - ./public:/var/www/html/public
+    networks:
+      - backend
+      - frontend
+    environment:
+      - APP_ENV=dev
+      - DATABASE_URL=mysql://root:password@mysql:3306/character_den?serverVersion=8.0.23
+      - PHP_OPCACHE_VALIDATE_TIMESTAMPS=1
+      - PHP_OPCACHE_MAX_ACCELERATED_FILES=10000
+      - PHP_OPCACHE_MEMORY_CONSUMPTION=192
+      - PHP_OPCACHE_MAX_WASTED_PERCENTAGE=10
+    command: bash -c "php-fpm"
+  php-myadmin:
+    build: .docker/php-myadmin
+    depends_on:
+      - mysql
+    ports:
+      - 8081:80
+    networks:
+      - backend
+    environment:
+      - PMA_ARBITRARY=1
+  node:
+    build: .docker/node
+    working_dir: /var/www/html
+    volumes:
+      - ./:/var/www/html
+      - ./public:/var/www/html/public
+    command: bash -c "yarn install --freeze-lock && yarn watch"
+  mysql:
+    build: .docker/mysql
+    restart: always
+    networks:
+      - backend
+    environment:
+      - MYSQL_ROOT_PASSWORD=password
+      - MYSQL_DATABASE=character_den
+networks:
+  frontend: { }
+  backend: { }
